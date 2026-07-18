@@ -51,3 +51,7 @@ Les tests d'endpoints tournent sur une base dédiée `recueil_test` (créée aut
 ├── frontend/           # Vue 3 + Tailwind (build Vite servi par Nginx)
 └── docker-compose.yml  # db (PostgreSQL) + backend + frontend
 ```
+
+## Licence
+
+[MIT](LICENSE)
