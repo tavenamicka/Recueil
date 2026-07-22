@@ -52,6 +52,13 @@ Les tests d'endpoints tournent sur une base dédiée `recueil_test` (créée aut
 └── docker-compose.yml  # db (PostgreSQL) + backend + frontend
 ```
 
+## Auteur
+
+**Mickaël Tavenart** — administrateur réseau et systèmes, consultant Coatch-numérique
+Développeur full‑stack et créateur d’applications assistées par IA
+
+- GitHub : [@tavenamicka](https://github.com/tavenamicka)
+
 ## Licence
 
 [MIT](LICENSE)
