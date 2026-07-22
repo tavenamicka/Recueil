@@ -54,8 +54,13 @@ Les tests d'endpoints tournent sur une base dédiée `recueil_test` (créée aut
 
 ## Auteur
 
-**Mickaël Tavenart** — administrateur réseau et systèmes, consultant Coatch-numérique
-Développeur full‑stack et créateur d’applications assistées par IA
+### Mickaël Tavenart
+
+**Administrateur réseau & systèmes**
+**Consultant coach‑numérique**
+**Développeur full‑stack & créateur d’applications assistées par IA**
+
+> *"L’IA comme moteur, l’humain comme destination."*
 
 - GitHub : [@tavenamicka](https://github.com/tavenamicka)
 
