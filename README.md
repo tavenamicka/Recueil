@@ -6,6 +6,18 @@ Déposez un export de discussion (`.txt`) : les liens sont extraits, leurs titre
 
 Pensée pour un usage familial ou en petit groupe : les inscriptions sont soumises à validation par un administrateur, les réinitialisations de mot de passe sont supervisées, et chaque étape déclenche une notification email. L'interface respecte les contrastes WCAG AA et se pilote entièrement au clavier.
 
+## Aperçu
+
+Captures réalisées sur des données fictives.
+
+![Bibliothèque : liens et médias classés par catégorie, favoris](docs/screenshots/bibliotheque.png)
+
+| Recherche | Médias |
+|---|---|
+| ![Recherche par titre, domaine ou catégorie](docs/screenshots/recherche.png) | ![Médias importés, avec vignettes](docs/screenshots/medias.png) |
+
+![Import d'un export WhatsApp ou de médias, ajout manuel d'un lien](docs/screenshots/import.png)
+
 ## Fonctionnalités
 
 - Import d'exports WhatsApp (`.txt`) avec suivi de progression
