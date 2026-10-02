@@ -1,5 +1,10 @@
+import io
+from pathlib import Path
 from unittest.mock import Mock, patch
 
+from PIL import Image
+
+from app.core.config import settings
 from app.models import Categorie
 
 
@@ -50,7 +55,7 @@ def test_list_liens_favori_filter(admin_client, lien):
 
 
 def test_update_lien_categorie(admin_client, lien, db_session):
-    autre = Categorie(nom="Business / Marketing", couleur="#B45309")
+    autre = Categorie(nom="Business / Marketing / Carrière", couleur="#0A66C2")
     db_session.add(autre)
     db_session.commit()
 
@@ -86,6 +91,20 @@ def test_delete_lien(admin_client, lien):
     assert admin_client.get("/liens").json()["total"] == 0
 
 
+def test_delete_lien_removes_vignette_file(admin_client, lien, db_session, _fresh_media_dir):
+    vignette_dir = Path(settings.media_root) / "vignettes"
+    vignette_dir.mkdir(parents=True, exist_ok=True)
+    vignette_file = vignette_dir / "test.jpg"
+    vignette_file.write_bytes(b"fake")
+    lien.vignette_path = "vignettes/test.jpg"
+    db_session.add(lien)
+    db_session.commit()
+
+    resp = admin_client.delete(f"/liens/{lien.id}")
+    assert resp.status_code == 204
+    assert not vignette_file.exists()
+
+
 def test_delete_lien_not_found(admin_client):
     resp = admin_client.delete("/liens/999999")
     assert resp.status_code == 404
@@ -102,10 +121,39 @@ def test_create_lien_success(mock_get, admin_client):
     assert data["url"] == "https://www.korben.info/un-article"
     assert data["domaine"] == "korben.info"
     assert data["titre_page"] == "Un super article"
-    assert data["categorie"]["nom"] == "Tech / Logiciels"
+    assert data["categorie"]["nom"] == "Technologie / IA"
 
     liens = admin_client.get("/liens").json()
     assert liens["total"] == 1
+
+
+@patch("app.services.whatsapp_link_extractor.requests.get")
+def test_create_lien_with_og_image_downloads_thumbnail(mock_get, admin_client, _fresh_media_dir):
+    # whatsapp_link_extractor.py et media_service.py font tous deux `import requests` :
+    # c'est le même module partagé (sys.modules), donc un seul patch suffit et doit
+    # distinguer les deux appels (page HTML vs octets de l'image) par l'URL demandée.
+    buf = io.BytesIO()
+    Image.new("RGB", (10, 10), color="green").save(buf, format="JPEG")
+    html_response = Mock(
+        text='<html><head>'
+        '<meta property="og:title" content="Un article avec image">'
+        '<meta property="og:image" content="https://example.com/photo.jpg">'
+        "</head></html>"
+    )
+    image_response = Mock(content=buf.getvalue())
+    image_response.raise_for_status = Mock()
+
+    def fake_get(url, *args, **kwargs):
+        return image_response if url == "https://example.com/photo.jpg" else html_response
+
+    mock_get.side_effect = fake_get
+
+    resp = admin_client.post("/liens", json={"url": "https://www.exemple-photo.tld/un-article"})
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["vignette_path"] is not None
+    assert data["vignette_path"].startswith("vignettes/")
+    assert (Path(settings.media_root) / data["vignette_path"]).exists()
 
 
 @patch("app.services.whatsapp_link_extractor.requests.get")

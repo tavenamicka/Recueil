@@ -1,18 +1,22 @@
 """Tests de caractérisation pour whatsapp_link_extractor.py.
 
-Le module est réutilisé tel quel (voir CONTEXT.md) : ces tests documentent et
-verrouillent son comportement réel, y compris ses aspérités connues (ex: la
-catégorisation de jeuxvideo.com sous "Santé / Sport", ou le titre_brut imparfait
-quand plusieurs liens partagent une même ligne), plutôt que de le corriger.
+Le module est réutilisé tel quel pour le parsing (`parse_export`,
+`fetch_title`) : ces tests documentent et verrouillent son comportement réel, y compris
+ses aspérités connues (ex: le titre_brut imparfait quand plusieurs liens partagent une
+même ligne), plutôt que de le corriger.
+
+`categorize()` en revanche a été volontairement réécrit (classement par thème du
+contenu — cuisine, bricolage, dessin... — plutôt que par plateforme d'origine) :
+ses tests vérifient le nouveau comportement voulu, pas un comportement hérité.
 """
 
 from unittest.mock import Mock, patch
 
 import pytest
 
-from app.services.whatsapp_link_extractor import categorize, fetch_title, parse_export
+from app.services.whatsapp_link_extractor import categorize, fetch_og_image, fetch_title, parse_export
 
-AUTEUR = "jean dupont"
+AUTEUR = "mickael tavenart"
 
 
 def write_export(tmp_path, lines):
@@ -86,20 +90,18 @@ class TestCategorize:
     @pytest.mark.parametrize(
         "domain, expected",
         [
-            ("facebook.com", "Réseaux sociaux - Facebook"),
-            ("www.facebook.com", "Réseaux sociaux - Facebook"),
-            ("instagram.com", "Réseaux sociaux - Instagram"),
-            ("youtube.com", "Vidéos - YouTube"),
-            ("youtu.be", "Vidéos - YouTube"),
-            ("linkedin.com", "Pro / Tech / Carrière - LinkedIn"),
-            ("amazon.fr", "Achats / Matériel"),
-            ("romhustler.org", "Téléchargement / Jeux"),
-            # Comportement réel du script d'origine (non corrigé) : jeuxvideo.com
-            # est classé sous "Santé / Sport" et non sous jeux/loisirs.
-            ("jeuxvideo.com", "Santé / Sport"),
-            ("korben.info", "Tech / Logiciels"),
-            ("numerama.com", "Tech / Logiciels"),
-            ("clubic.com", "Tech / Logiciels"),
+            ("amazon.fr", "Achats / Bons plans"),
+            ("korben.info", "Technologie / IA"),
+            ("numerama.com", "Technologie / IA"),
+            ("clubic.com", "Technologie / IA"),
+            ("romhustler.org", "Technologie / IA"),
+            # facebook.com/youtube.com/instagram.com/linkedin.com n'impliquent plus aucun
+            # thème : ce sont des plateformes génériques qui hébergent n'importe quel sujet
+            # selon qui poste (le feed LinkedIn réel de l'utilisateur est majoritairement tech).
+            ("facebook.com", "Autre"),
+            ("youtube.com", "Autre"),
+            ("instagram.com", "Autre"),
+            ("linkedin.com", "Autre"),
             ("exemple-inconnu.tld", "Autre"),
         ],
     )
@@ -109,17 +111,24 @@ class TestCategorize:
     @pytest.mark.parametrize(
         "titre, expected",
         [
-            ("Comment installer Docker", "Tech / Logiciels"),
-            ("Une intelligence artificielle qui code", "Tech / Logiciels"),
-            ("Astuces pour le jardin ce printemps", "Maison / Bricolage"),
-            ("Stratégie marketing pour son entreprise", "Business / Marketing"),
+            ("Comment installer Docker", "Technologie / IA"),
+            ("Une intelligence artificielle qui code", "Technologie / IA"),
+            ("Astuces pour le jardin ce printemps", "Bricolage / Jardinage"),
+            ("Stratégie marketing pour son entreprise", "Business / Marketing / Carrière"),
+            ("Ma recette des nuggets de poulet", "Cuisine / Recettes"),
+            ("Leçon de dessin manga pour débutants", "Dessin / Créativité manuelle"),
+            ("No Back Pain Tonight avec cette routine fitness", "Sport / Santé / Bien-être"),
+            ("5 phénomènes quantiques incroyables", "Sciences / Curiosités"),
+            ("Song with just 4 chords à la guitare", "Musique"),
+            ("Ces sites pour apprendre l'anglais gratuitement", "Langues / Apprentissage"),
+            ("Une vidéo humour à mourir de rire", "Humour / Divertissement"),
         ],
     )
     def test_categorisation_par_mot_cle_du_titre(self, titre, expected):
         assert categorize("domaine-neutre.tld", titre) == expected
 
     def test_categorisation_insensible_a_la_casse(self):
-        assert categorize("FACEBOOK.COM", "PEU IMPORTE") == "Réseaux sociaux - Facebook"
+        assert categorize("KORBEN.INFO", "PEU IMPORTE") == "Technologie / IA"
 
     def test_categorie_par_defaut(self):
         assert categorize("rien-de-connu.tld", "un titre sans mot-clé particulier") == "Autre"
@@ -142,3 +151,22 @@ class TestFetchTitle:
     def test_chaine_vide_si_echec_reseau(self, mock_get):
         mock_get.side_effect = Exception("timeout")
         assert fetch_title("https://example.com") == ""
+
+
+class TestFetchOgImage:
+    @patch("app.services.whatsapp_link_extractor.requests.get")
+    def test_utilise_og_image_si_present(self, mock_get):
+        mock_get.return_value = Mock(
+            text='<html><head><meta property="og:image" content="https://example.com/photo.jpg"></head></html>'
+        )
+        assert fetch_og_image("https://example.com") == "https://example.com/photo.jpg"
+
+    @patch("app.services.whatsapp_link_extractor.requests.get")
+    def test_chaine_vide_si_pas_dog_image(self, mock_get):
+        mock_get.return_value = Mock(text="<html><head><title>Sans image</title></head></html>")
+        assert fetch_og_image("https://example.com") == ""
+
+    @patch("app.services.whatsapp_link_extractor.requests.get")
+    def test_chaine_vide_si_echec_reseau(self, mock_get):
+        mock_get.side_effect = Exception("timeout")
+        assert fetch_og_image("https://example.com") == ""

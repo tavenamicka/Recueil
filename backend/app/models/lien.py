@@ -21,5 +21,9 @@ class Lien(Base):
     categorie_id: Mapped[int | None] = mapped_column(ForeignKey("categories.id"))
     date_ajout: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     favori: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    # Chemin relatif à MEDIA_ROOT (même pipeline que les vignettes de médias uploadés) :
+    # image de prévisualisation (og:image) téléchargée à l'import, survit à la
+    # suppression du post d'origine.
+    vignette_path: Mapped[str | None] = mapped_column(String(1000))
 
     categorie: Mapped["Categorie"] = relationship(back_populates="liens")

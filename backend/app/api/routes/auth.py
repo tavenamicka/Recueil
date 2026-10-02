@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_current_user
 from app.core.config import settings
 from app.core.security import hash_password, verify_password
+from app.core.throttle import throttle_login, record_login_failure, clear_login_failures
 from app.db.session import get_db
 from app.models.password_reset import PasswordResetRequest
 from app.models.user import User, UserStatus
@@ -41,16 +42,19 @@ def register(payload: RegisterRequest, background_tasks: BackgroundTasks, db: Se
 
 @router.post("/login", response_model=UserOut)
 def login(payload: LoginRequest, request: Request, db: Session = Depends(get_db)):
+    throttle_login(request)
     email = payload.email.strip().lower()
     user = db.query(User).filter(User.email == email).first()
 
     if user is None or not verify_password(payload.password, user.password_hash):
+        record_login_failure(request)
         raise HTTPException(status_code=401, detail="Email ou mot de passe incorrect.")
     if user.status == UserStatus.pending:
         raise HTTPException(status_code=403, detail="Ton compte est en attente de validation par l'administrateur.")
     if user.status == UserStatus.rejected:
         raise HTTPException(status_code=403, detail="Ta demande d'accès a été refusée.")
 
+    clear_login_failures(request)
     request.session["user_id"] = user.id
     return user
 

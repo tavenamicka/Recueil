@@ -76,6 +76,19 @@ def db_session(_fresh_database):
     session.close()
 
 
+@pytest.fixture(autouse=True)
+def _fresh_login_throttle():
+    """Le throttle de connexion (app/core/throttle.py) vit dans un dict au
+    niveau module : sans remise à zéro, les échecs d'un test s'additionnent
+    à ceux du suivant (même IP `testclient` pour tout TestClient) jusqu'à
+    déclencher un 429 inattendu bien avant la limite réelle de 10."""
+    from app.core.throttle import _reset_all
+
+    _reset_all()
+    yield
+    _reset_all()
+
+
 @pytest.fixture
 def client(_fresh_database, _fresh_media_dir):
     with TestClient(app) as c:
@@ -91,7 +104,7 @@ def admin_client(client):
 
 @pytest.fixture
 def categorie(db_session):
-    c = Categorie(nom="Tech / Logiciels", couleur="#1F4E78")
+    c = Categorie(nom="Technologie / IA", couleur="#1F4E78")
     db_session.add(c)
     db_session.commit()
     db_session.refresh(c)

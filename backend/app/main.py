@@ -17,7 +17,13 @@ from app.core.security import hash_password
 from app.db.session import SessionLocal
 from app.models.user import User, UserRole, UserStatus
 
-app = FastAPI(title=settings.app_name)
+_is_prod = settings.environment == "production"
+app = FastAPI(
+    title=settings.app_name,
+    docs_url=None if _is_prod else "/docs",
+    redoc_url=None if _is_prod else "/redoc",
+    openapi_url=None if _is_prod else "/openapi.json",
+)
 
 app.add_middleware(
     CORSMiddleware,

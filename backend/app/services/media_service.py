@@ -1,15 +1,18 @@
 import re
 import subprocess
 from datetime import datetime
+from io import BytesIO
 from pathlib import Path
 from uuid import uuid4
 
+import requests
 from fastapi import HTTPException, UploadFile
 from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.media import Media, MediaType
+from app.services.whatsapp_link_extractor import HEADERS, TIMEOUT
 
 EXTENSION_MAP: dict[str, MediaType] = {
     ".jpg": MediaType.image,
@@ -85,6 +88,26 @@ def _extract_duration_seconds(source: Path) -> int | None:
             return None
         return round(float(result.stdout.strip()))
     except (ValueError, OSError):
+        return None
+
+
+def download_lien_thumbnail(image_url: str) -> str | None:
+    """Télécharge l'image og:image d'un lien et la stocke comme vignette locale (même
+    pipeline que les vignettes de médias uploadés), pour qu'elle survive à la
+    suppression du post d'origine. Retourne le chemin relatif à MEDIA_ROOT, ou None
+    en cas d'échec (image manquante, format non supporté, timeout...) — échec silencieux
+    et toléré, comme fetch_title()/fetch_og_image()."""
+    try:
+        r = requests.get(image_url, headers=HEADERS, timeout=TIMEOUT)
+        r.raise_for_status()
+        thumb_dir = Path(settings.media_root) / "vignettes"
+        thumb_dir.mkdir(parents=True, exist_ok=True)
+        thumb_path = thumb_dir / f"{uuid4().hex}.jpg"
+        with Image.open(BytesIO(r.content)) as img:
+            img.thumbnail(THUMBNAIL_SIZE)
+            img.convert("RGB").save(thumb_path, "JPEG")
+        return f"vignettes/{thumb_path.name}"
+    except Exception:
         return None
 
 

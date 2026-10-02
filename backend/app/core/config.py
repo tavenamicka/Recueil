@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://recueil:recueil@db:5432/recueil"
     media_root: str = "/data/media"
     app_name: str = "Recueil"
+    # "production" ferme /docs, /redoc, /openapi.json (à activer avant toute exposition publique)
+    environment: str = "development"
 
     secret_key: str = "change-me-in-production"
     admin_email: str = "admin@recueil.local"

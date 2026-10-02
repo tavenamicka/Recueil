@@ -19,7 +19,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 media_type_enum = postgresql.ENUM("image", "video", "audio", name="media_type", create_type=False)
 
-# Catégories par défaut (reprises du classement Excel existant, cf CONTEXT.md)
+# Catégories par défaut (reprises du classement Excel d'origine)
 DEFAULT_CATEGORIES = [
     ("Réseaux sociaux - Facebook", "#0D6AE4"),
     ("Réseaux sociaux - Instagram", "#C13584"),

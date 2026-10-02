@@ -100,6 +100,7 @@ export function useCatalog() {
       url: lien.url,
       categorie: lien.categorie,
       favori: lien.favori,
+      thumbnailUrl: lien.vignette_path ? `/media/${lien.vignette_path}` : null,
     };
   }
 

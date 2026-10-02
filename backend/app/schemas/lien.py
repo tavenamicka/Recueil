@@ -24,6 +24,7 @@ class LienOut(BaseModel):
     titre_page: Optional[str] = None
     date_ajout: datetime
     favori: bool
+    vignette_path: Optional[str] = None
     categorie: Optional[CategorieOut] = None
 
 

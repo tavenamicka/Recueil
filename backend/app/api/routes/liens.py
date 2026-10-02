@@ -1,5 +1,6 @@
 import html
 from datetime import date, datetime
+from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
 
@@ -8,11 +9,13 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import get_current_user
+from app.core.config import settings
 from app.db.session import get_db
 from app.models import Categorie, Lien
 from app.schemas.lien import LienCreate, LienListResponse, LienOut, LienUpdate
 from app.services.import_service import get_or_create_categorie
-from app.services.whatsapp_link_extractor import categorize, fetch_title
+from app.services.media_service import download_lien_thumbnail
+from app.services.whatsapp_link_extractor import categorize, fetch_og_image, fetch_title
 
 router = APIRouter(tags=["liens"], dependencies=[Depends(get_current_user)])
 
@@ -34,6 +37,8 @@ def create_lien(payload: LienCreate, db: Session = Depends(get_db)):
     titre_page = fetch_title(url)
     titre_page = html.unescape(titre_page) if titre_page else None
     categorie = get_or_create_categorie(db, categorize(domaine, titre_page or ""))
+    image_url = fetch_og_image(url)
+    vignette_path = download_lien_thumbnail(image_url) if image_url else None
 
     now = datetime.now()
     lien = Lien(
@@ -43,6 +48,7 @@ def create_lien(payload: LienCreate, db: Session = Depends(get_db)):
         domaine=domaine,
         titre_page=titre_page,
         categorie_id=categorie.id,
+        vignette_path=vignette_path,
     )
     db.add(lien)
     db.commit()
@@ -121,6 +127,9 @@ def delete_lien(lien_id: int, db: Session = Depends(get_db)):
     lien = db.get(Lien, lien_id)
     if lien is None:
         raise HTTPException(status_code=404, detail="Lien introuvable.")
+
+    if lien.vignette_path:
+        (Path(settings.media_root) / lien.vignette_path).unlink(missing_ok=True)
 
     db.delete(lien)
     db.commit()

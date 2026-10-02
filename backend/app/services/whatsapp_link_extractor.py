@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Extracteur de liens WhatsApp
-----------------------------
+Extracteur de liens WhatsApp - Mickatch
+--------------------------------------
 Usage:
     python3 whatsapp_link_extractor.py /chemin/vers/export.txt
 
@@ -38,7 +38,7 @@ XLSX_PATH = Path(__file__).parent / "liens_classes.xlsx"
 HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}
 TIMEOUT = 8
 
-ENTRY_RE = re.compile(r"^(\d{2}/\d{2}/\d{4}), (\d{2}:\d{2}) - [^:]+: (.*)$")
+ENTRY_RE = re.compile(r"^(\d{2}/\d{2}/\d{4}), (\d{2}:\d{2}) - mickael tavenart: (.*)$")
 URL_RE = re.compile(r"(https?://\S+)")
 
 
@@ -78,32 +78,80 @@ def fetch_title(url: str) -> str:
     return ""
 
 
+def fetch_og_image(url: str) -> str:
+    """Récupère l'URL de l'image de prévisualisation (og:image) d'une page, si présente."""
+    try:
+        r = requests.get(url, headers=HEADERS, timeout=TIMEOUT, allow_redirects=True)
+        soup = BeautifulSoup(r.text, "html.parser")
+        og = soup.find("meta", property="og:image")
+        if og and og.get("content"):
+            return og["content"].strip()
+    except Exception:
+        pass
+    return ""
+
+
+# Domaines dont le contenu est prévisible indépendamment du titre (contrairement à
+# facebook.com/youtube.com/instagram.com/linkedin.com, qui hébergent n'importe quel
+# thème selon qui poste — le feed LinkedIn de l'utilisateur est très majoritairement
+# tech, pas "carrière/business").
+_DOMAIN_THEMES = [
+    ("amazon.", "Achats / Bons plans"),
+    ("korben.info", "Technologie / IA"),
+    ("numerama.com", "Technologie / IA"),
+    ("clubic.com", "Technologie / IA"),
+    ("justgeek", "Technologie / IA"),
+    ("lesnumeriques.com", "Technologie / IA"),
+    ("zdnet.fr", "Technologie / IA"),
+    ("01net.com", "Technologie / IA"),
+    ("romhustler", "Technologie / IA"),
+]
+
+# Ordre du plus spécifique au plus générique : le premier thème dont un mot-clé
+# matche l'emporte, donc les thèmes "fourre-tout" (Technologie / IA en tête) sont
+# vérifiés en dernier pour ne pas voler les titres plus spécifiques.
+_THEME_KEYWORDS = [
+    ("Musique", ["musique", "music", "chanson", "song", "guitare", "guitar", "piano",
+                 "playlist", "techno", "trance", "chord", "accord", "violão", "violao"]),
+    ("Cuisine / Recettes", ["recette", "recipe", "cuisine", "cuisiner", "cooking", "ingrédients",
+                             "ingredients", "farine", "boulangerie", "gourmand", "nuggets", "burger"]),
+    ("Dessin / Créativité manuelle", ["dessin", "dessiner", "doodle", "origami", "manga",
+                                       "artwork", "drawing", "illustration", "coloriage"]),
+    ("Sport / Santé / Bien-être", ["fitness", "musculation", "exercice", "exercices", "workout",
+                                    "étirement", "etirement", "stretch", "sciatique", "sciatica",
+                                    "back pain", "bien-être", "bien-etre", "wellness", "gym"]),
+    ("Sciences / Curiosités", ["quantique", "quantum", "espace", "cosmos", "univers", "astronomie",
+                                "physique", "insolite", "phénomène", "phenomene", "mystère", "mystere"]),
+    ("Bricolage / Jardinage", ["jardin", "jardinage", "garden", "gardener", "cascade", "bricolage",
+                                "brico", "terrasse", "pallet", "palette", "diy", "rénovation",
+                                "renovation", "construction", "carpenter", "menuiserie"]),
+    ("Langues / Apprentissage", ["anglais", "english", "apprendre", "apprentissage",
+                                  "learn", "learning", "learnenglish", "learnfrench"]),
+    ("Humour / Divertissement", ["humour", "humor", "drôle", "drole", "comique", "blague", "meme"]),
+    ("Achats / Bons plans", ["bon plan", "bons plans", "promo", "réduction", "reduction", "gadget",
+                              "amazonfinds"]),
+    ("Business / Marketing / Carrière", ["marketing", "entreprise", "business", "site web",
+                                          "startup", "carrière", "carriere"]),
+    ("Technologie / IA", ["korben", "logiciel", "claude", "ia", "intelligence artificielle",
+                           "deepclaude", "windows", "linux", "docker", "jellyfin", "plex", "beszel",
+                           "self-hosting", "selfhosting", "homelab", "devops", "sysadmin", "réseau",
+                           "reseau", "network", "networking", "vpn", "serveur", "server", "chatgpt",
+                           "opensource", "open source", "code", "coding", "vibecoding", "développeur",
+                           "developpeur"]),
+]
+
+
 def categorize(domain: str, title: str) -> str:
     t = title.lower()
     d = domain.lower()
-    if "facebook.com" in d:
-        return "Réseaux sociaux - Facebook"
-    if "instagram.com" in d:
-        return "Réseaux sociaux - Instagram"
-    if "youtu" in d:
-        return "Vidéos - YouTube"
-    if "linkedin.com" in d:
-        return "Pro / Tech / Carrière - LinkedIn"
-    if "amazon." in d:
-        return "Achats / Matériel"
-    if "romhustler" in d:
-        return "Téléchargement / Jeux"
-    if "jeuxvideo.com" in d:
-        return "Santé / Sport"
-    if "justgeek" in d or "korben" in d or "numerama" in d or "clubic" in d:
-        return "Tech / Logiciels"
-    if any(k in t for k in ["korben", "logiciel", "claude", " ia ", "intelligence artificielle",
-                             "deepclaude", "windows", "linux", "docker", "jellyfin", "plex", "beszel"]):
-        return "Tech / Logiciels"
-    if any(k in t for k in ["jardin", "cascade", "ventilateur", "bricolage", "maison"]):
-        return "Maison / Bricolage"
-    if any(k in t for k in ["marketing", "entreprise", "business", "site web"]):
-        return "Business / Marketing"
+    for needle, theme in _DOMAIN_THEMES:
+        if needle in d:
+            return theme
+    for theme, keywords in _THEME_KEYWORDS:
+        # "s?" final : tolère les pluriels simples (quantique/quantiques, recette/recettes)
+        # sans avoir à lister chaque variante.
+        if any(re.search(rf"\b{re.escape(kw)}s?\b", t) for kw in keywords):
+            return theme
     return "Autre"
 
 

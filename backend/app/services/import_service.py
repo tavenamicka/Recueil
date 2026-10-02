@@ -5,7 +5,8 @@ from threading import Lock
 
 from app.db.session import SessionLocal
 from app.models import Categorie, Lien
-from app.services.whatsapp_link_extractor import categorize, fetch_title, parse_export
+from app.services.media_service import download_lien_thumbnail
+from app.services.whatsapp_link_extractor import categorize, fetch_og_image, fetch_title, parse_export
 
 _jobs: dict[str, dict] = {}
 _jobs_lock = Lock()
@@ -51,6 +52,8 @@ def run_txt_import(job_id: str, tmp_path: Path) -> None:
                 categorie = get_or_create_categorie(
                     db, categorize(r["domain"], titre_page or r["title_brut"])
                 )
+                image_url = fetch_og_image(r["url"])
+                vignette_path = download_lien_thumbnail(image_url) if image_url else None
                 db.add(
                     Lien(
                         url=r["url"],
@@ -60,6 +63,7 @@ def run_txt_import(job_id: str, tmp_path: Path) -> None:
                         titre_brut=r["title_brut"],
                         titre_page=titre_page,
                         categorie_id=categorie.id,
+                        vignette_path=vignette_path,
                     )
                 )
                 db.flush()

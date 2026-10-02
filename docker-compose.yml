@@ -22,6 +22,7 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-recueil}:${POSTGRES_PASSWORD:-recueil}@db:5432/${POSTGRES_DB:-recueil}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
       MEDIA_ROOT: /data/media
       SECRET_KEY: ${SECRET_KEY:-change-me-to-a-long-random-string}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@recueil.local}
@@ -35,8 +36,10 @@ services:
     volumes:
       - ./backend:/app
       - media_data:/data/media
-    ports:
-      - "8091:8000"
+    # Pas de publication de port : le backend n'est joint que par le frontend
+    # via le reseau Docker interne (nginx proxy_pass http://backend:8000).
+    expose:
+      - "8000"
 
   frontend:
     build: ./frontend

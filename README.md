@@ -43,7 +43,7 @@ docker compose up -d
 docker compose run --rm backend alembic upgrade head   # migrations (obligatoire au 1er lancement)
 ```
 
-L'application est accessible sur `http://localhost:8090` (backend seul sur `:8091`). Le compte admin est créé automatiquement au démarrage à partir de `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
+L'application est accessible sur `http://localhost:8090` (le backend n'est pas publié, il n'est joint que par le frontend). Le compte admin est créé automatiquement au démarrage à partir de `ADMIN_EMAIL`/`ADMIN_PASSWORD`.
 
 En développement : `npm run dev` dans `frontend/` (port `5174`, proxy `/api` et `/media` vers le backend via `vite.config.js`).
 
