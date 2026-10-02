@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Extracteur de liens WhatsApp - Mickatch
---------------------------------------
+Extracteur de liens WhatsApp
+---------------------------
 Usage:
     python3 whatsapp_link_extractor.py /chemin/vers/export.txt
 
